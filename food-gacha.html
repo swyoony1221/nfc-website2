@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>오늘 뭐 먹지? — 푸드 가챠</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --g1: #7c83fd; --g2: #4d5bf9; --g3: #9d7bff;
+    --bg-deep: #0a0a0e; --panel: #17171d; --panel-2: #1e1e26;
+    --ink: #f4f3f6; --ink-dim: #9a99a6; --line: rgba(255,255,255,0.09);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overscroll-behavior: none; }
+  body {
+    margin: 0; background: var(--bg-deep); color: var(--ink);
+    font-family: 'Noto Sans KR', sans-serif; overflow: hidden; position: fixed; inset: 0; width: 100%;
+  }
+
+  #app { position: fixed; inset: 0; overflow: hidden;
+    background: radial-gradient(circle at 22% 8%, color-mix(in srgb, var(--g1) 20%, var(--bg-deep)) 0%, var(--bg-deep) 60%);
+    transition: background 0.7s ease; }
+
+  .track { display: flex; width: 600%; height: 100%;
+    transform: translateX(calc(var(--step, 0) * -16.6667%));
+    transition: transform 0.5s cubic-bezier(.22,.9,.28,1); }
+
+  .screen { width: 16.6667%; height: 100%; flex-shrink: 0; display: flex; flex-direction: column;
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+  /* ---- header ---- */
+  .scr-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 4px; flex-shrink: 0; min-height: 40px; }
+  .back-chev { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel-2);
+    color: var(--ink); display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; flex-shrink: 0; }
+  .back-chev.hidden { visibility: hidden; }
+  .head-titles { flex: 1; min-width: 0; }
+  .head-titles .t { font-family: 'Jua', sans-serif; font-size: 18px; line-height: 1.3; }
+  .head-titles .s { font-size: 11.5px; color: var(--ink-dim); margin-top: 1px; }
+  .dots { display: flex; gap: 5px; flex-shrink: 0; }
+  .dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--line); transition: background 0.3s, transform 0.3s; }
+  .dots span.on { background: linear-gradient(120deg, var(--g1), var(--g2)); transform: scale(1.3); }
+
+  /* ---- filter content ---- */
+  .scr-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 16px 6px; display: flex; flex-direction: column; justify-content: center; }
+  .chip-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .chip {
+    appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    font-family: inherit; font-size: 15px; padding: 13px 18px; border-radius: 16px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 84px;
+    transition: transform 0.15s ease, background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .chip .ico { font-size: 26px; }
+  .chip:active { transform: scale(0.94); }
+  .chip.on { background: linear-gradient(150deg, color-mix(in srgb, var(--g1) 88%, transparent), color-mix(in srgb, var(--g2) 88%, transparent));
+    border-color: transparent; color: #fff; font-weight: 700;
+    box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--g2) 70%, transparent); }
+
+  .scr-footer { flex-shrink: 0; padding: 10px 16px calc(16px + env(safe-area-inset-bottom,0px)); display: flex; flex-direction: column; gap: 10px; }
+  .nav-row { display: flex; gap: 10px; }
+  .btn { flex: 1; border: none; border-radius: 100px; padding: 15px; font-family: 'Noto Sans KR', sans-serif; font-weight: 700;
+    font-size: 15px; cursor: pointer; }
+  .btn:active { transform: scale(0.97); }
+  .btn.ghost { background: var(--panel-2); color: var(--ink); border: 1px solid var(--line); }
+  .btn.primary { background: linear-gradient(120deg, var(--g1), var(--g2)); color: #fff; }
+  .link-btn { background: none; border: none; color: var(--ink-dim); font-size: 12.5px; text-align: center; text-decoration: underline; cursor: pointer; padding: 2px; }
+
+  /* ---- review screen ---- */
+  .review-body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 8px 20px; overflow-y: auto; }
+  .review-block .rb-label { font-size: 11.5px; color: var(--ink-dim); margin-bottom: 6px; }
+  .review-tags { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; }
+  .review-tag { font-size: 12.5px; padding: 5px 11px; border-radius: 100px; background: var(--panel-2); border: 1px solid var(--line); }
+  .review-tag.empty { color: var(--ink-dim); font-style: normal; }
+  .pool-box { text-align: center; margin-top: 4px; padding: 14px; border-radius: 16px; background: var(--panel);
+    border: 1px solid var(--line); }
+  .pool-box .num { font-family: 'Jua', sans-serif; font-size: 30px; background: linear-gradient(120deg, var(--g1), var(--g3));
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .pool-box .lbl { font-size: 12.5px; color: var(--ink-dim); margin-top: 2px; }
+  .relax-note { text-align: center; font-size: 11.5px; color: var(--ink-dim); margin-top: -4px; line-height: 1.5; }
+
+  /* ---- draw pack button (review + fab) ---- */
+  .pack-btn { width: 100%; border: none; cursor: pointer; font-family: 'Jua', sans-serif; font-size: 19px; color: #fff;
+    padding: 17px; border-radius: 100px; background: linear-gradient(120deg, var(--g1), var(--g3) 55%, var(--g2));
+    box-shadow: 0 14px 28px -10px color-mix(in srgb, var(--g2) 65%, transparent), inset 0 1px 0 rgba(255,255,255,0.35); }
+  .pack-btn:active { transform: scale(0.96); }
+  .pack-btn .sub { display: block; font-family: 'Noto Sans KR', sans-serif; font-size: 11px; font-weight: 500; opacity: 0.85; margin-top: 2px; }
+
+  #fab { position: absolute; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom,0px)); z-index: 20;
+    width: 58px; height: 58px; border-radius: 50%; border: none; cursor: pointer;
+    background: linear-gradient(140deg, var(--g1), var(--g2)); color: #fff; font-size: 24px;
+    box-shadow: 0 12px 26px -8px color-mix(in srgb, var(--g2) 75%, transparent), inset 0 1px 0 rgba(255,255,255,0.35);
+    display: flex; align-items: center; justify-content: center; transition: transform 0.15s ease, opacity 0.3s ease, background 0.7s ease; }
+  #fab:active { transform: scale(0.9); }
+  #fab.hide { opacity: 0; pointer-events: none; transform: scale(0.6); }
+
+  /* ---- result screen ---- */
+  .result-screen { align-items: stretch; }
+  .result-body { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 4px 16px; perspective: 1400px; }
+  .card-perspective { height: min(58dvh, 430px); aspect-ratio: 63 / 92; perspective: 1400px; touch-action: none; position: relative; }
+  .tilt { width: 100%; height: 100%; transform-style: preserve-3d; will-change: transform; }
+  .card { position: relative; width: 100%; height: 100%; transform-style: preserve-3d;
+    transition: transform 0.7s cubic-bezier(.2,.9,.25,1); cursor: pointer; }
+  .card.pop { animation: pop-in 0.55s cubic-bezier(.2,1.4,.4,1); }
+  @keyframes pop-in {
+    0% { transform: scale(0.25) rotateZ(-10deg); opacity: 0; }
+    60% { transform: scale(1.07) rotateZ(2deg); opacity: 1; }
+    100% { transform: scale(1) rotateZ(0deg); opacity: 1; }
+  }
+  .card.flipped { transform: rotateY(180deg); }
+
+  .face { position: absolute; inset: 0; border-radius: 18px; backface-visibility: hidden; overflow: hidden;
+    border: 2px solid color-mix(in srgb, var(--g1) 55%, #fff 12%);
+    box-shadow: 0 24px 50px -18px rgba(0,0,0,0.75), 0 0 0 1px rgba(255,255,255,0.05),
+      0 0 34px -6px color-mix(in srgb, var(--g2) 45%, transparent);
+    background: var(--panel); transition: box-shadow 0.4s ease; }
+  .face.back { transform: rotateY(180deg); }
+  .face-inner { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; z-index: 1; }
+
+  .front { background: linear-gradient(155deg, color-mix(in srgb, var(--g1) 30%, #101014), #101014 60%); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; padding: 11px 12px 0; }
+  .genre-badge { font-size: 10px; font-weight: 700; padding: 4px 9px; border-radius: 100px;
+    background: linear-gradient(120deg, var(--g1), var(--g2)); color: #fff; }
+  .hp-badge { font-size: 10.5px; color: var(--ink-dim); font-weight: 700; }
+  .art-frame { margin: 7px 11px 0; height: 40%; border-radius: 12px;
+    background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--g3) 35%, #1a1a22), #101014 80%);
+    display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); }
+  .art-emoji { font-size: 62px; filter: drop-shadow(0 8px 16px rgba(0,0,0,0.5)); }
+  .name-row { padding: 10px 13px 0; }
+  .food-name { font-family: 'Jua', sans-serif; font-size: 19px; margin: 0; letter-spacing: -0.01em; }
+  .tag-row { display: flex; gap: 5px; flex-wrap: wrap; padding: 6px 13px 0; }
+  .mini-tag { font-size: 9.5px; color: var(--ink-dim); border: 1px solid var(--line); border-radius: 100px; padding: 2px 7px; }
+  .flavor-text { margin: 8px 13px 0; font-size: 11.5px; line-height: 1.5; color: #d8d7de; flex: 1; }
+  .card-footer { padding: 7px 13px 11px; font-size: 9.5px; color: var(--ink-dim); display: flex; justify-content: space-between;
+    border-top: 1px solid var(--line); margin-top: auto; }
+
+  .back-inner { padding: 18px 17px; display: flex; flex-direction: column; height: 100%;
+    background: linear-gradient(160deg, #15151b, #0e0e12 70%); }
+  .back-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+  .back-emoji { font-size: 27px; }
+  .back-title { font-family: 'Jua', sans-serif; font-size: 16.5px; }
+  .stat-line { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 12px; }
+  .stat-line .k { color: var(--ink-dim); }
+  .stat-line .v { font-weight: 700; }
+  .kcal-big { text-align: center; margin: 8px 0 10px; }
+  .kcal-big .num { font-family: 'Jua', sans-serif; font-size: 30px; background: linear-gradient(120deg, var(--g1), var(--g3));
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .kcal-big .unit { font-size: 11px; color: var(--ink-dim); }
+  .detail-text { font-size: 11.5px; line-height: 1.6; color: #c9c8d0; flex: 1; overflow-y: auto; }
+
+  /* ---- holographic foil layers ---- */
+  .foil { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 2; }
+  .foil-grain {
+    background-image:
+      repeating-radial-gradient(circle at 15% 20%, rgba(255,255,255,0.55) 0px, transparent 1px, transparent 5px),
+      repeating-radial-gradient(circle at 65% 75%, rgba(255,255,255,0.4) 0px, transparent 1px, transparent 6px),
+      repeating-radial-gradient(circle at 85% 15%, rgba(255,255,255,0.35) 0px, transparent 1px, transparent 7px);
+    mix-blend-mode: screen; opacity: 0.22;
+  }
+  .foil-rainbow {
+    background: conic-gradient(from calc(var(--ang,0) * 1deg) at var(--mx,50%) var(--my,50%),
+      #ff6b6b, #ffd166, #b8ff6b, #6bffc0, #6bd6ff, #9d6bff, #ff6bd6, #ff6b6b);
+    mix-blend-mode: screen;
+    opacity: calc(0.20 + var(--intensity,0) * 0.22);
+    mask-image: radial-gradient(circle at var(--mx,50%) var(--my,50%), black 0%, black 28%, transparent 78%);
+    -webkit-mask-image: radial-gradient(circle at var(--mx,50%) var(--my,50%), black 0%, black 28%, transparent 78%);
+    transition: opacity 0.25s ease;
+  }
+  .foil-sparkle {
+    background-image: repeating-conic-gradient(from calc(var(--ang,0) * 2deg) at var(--mx,50%) var(--my,50%),
+      rgba(255,255,255,0.95) 0deg 1deg, transparent 1deg 8deg);
+    mix-blend-mode: screen;
+    opacity: calc(0.28 + var(--intensity,0) * 0.42);
+    mask-image: radial-gradient(circle at var(--mx,50%) var(--my,50%), black 0%, transparent 40%);
+    -webkit-mask-image: radial-gradient(circle at var(--mx,50%) var(--my,50%), black 0%, transparent 40%);
+    transition: opacity 0.25s ease;
+  }
+  .foil-glare {
+    background: radial-gradient(circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,0.85), rgba(255,255,255,0.1) 32%, transparent 62%);
+    mix-blend-mode: screen;
+    opacity: calc(0.5 + var(--intensity,0) * 0.35);
+    transition: opacity 0.25s ease;
+  }
+  .card.pop .foil-rainbow, .card.pop .foil-sparkle, .card.pop .foil-glare { animation: intro-sweep 1.4s ease-out 1; }
+  @keyframes intro-sweep {
+    0% { opacity: 0; }
+    35% { opacity: 0.9; }
+    100% { opacity: inherit; }
+  }
+
+  .result-actions { flex-shrink: 0; padding: 8px 20px calc(14px + env(safe-area-inset-bottom,0px)); display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .result-btn-row { display: flex; gap: 10px; width: 100%; }
+  .gyro-btn { background: none; border: none; color: var(--ink-dim); font-size: 11.5px; cursor: pointer; text-decoration: underline; padding: 2px; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px);
+    background: #232329; border: 1px solid var(--line); color: var(--ink); padding: 11px 18px; border-radius: 100px;
+    font-size: 13px; opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease; pointer-events: none; z-index: 50; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card.pop, .track, .tilt { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="track" id="track">
+
+    <!-- Step 0: 장르 -->
+    <section class="screen" data-step="0">
+      <div class="scr-head">
+        <button class="back-chev hidden"><span>‹</span></button>
+        <div class="head-titles"><div class="t">어떤 장르가 좋아요?</div><div class="s">여러 개 골라도 되고, 안 골라도 돼요</div></div>
+        <div class="dots"><span class="on"></span><span></span><span></span><span></span><span></span></div>
+      </div>
+      <div class="scr-body"><div class="chip-grid" data-chips="genre"></div></div>
+      <div class="scr-footer">
+        <div class="nav-row"><button class="btn primary" data-next>다음</button></div>
+      </div>
+    </section>
+
+    <!-- Step 1: 종류 -->
+    <section class="screen" data-step="1">
+      <div class="scr-head">
+        <button class="back-chev" data-back><span>‹</span></button>
+        <div class="head-titles"><div class="t">면? 밥? 국?</div><div class="s">먹고 싶은 형태를 골라보세요</div></div>
+        <div class="dots"><span></span><span class="on"></span><span></span><span></span><span></span></div>
+      </div>
+      <div class="scr-body"><div class="chip-grid" data-chips="type"></div></div>
+      <div class="scr-footer">
+        <div class="nav-row"><button class="btn primary" data-next>다음</button></div>
+      </div>
+    </section>
+
+    <!-- Step 2: 온도 -->
+    <section class="screen" data-step="2">
+      <div class="scr-head">
+        <button class="back-chev" data-back><span>‹</span></button>
+        <div class="head-titles"><div class="t">뜨거운 거? 차가운 거?</div><div class="s">오늘 날씨에 맞는 걸로</div></div>
+        <div class="dots"><span></span><span></span><span class="on"></span><span></span><span></span></div>
+      </div>
+      <div class="scr-body"><div class="chip-grid" data-chips="temp"></div></div>
+      <div class="scr-footer">
+        <div class="nav-row"><button class="btn primary" data-next>다음</button></div>
+      </div>
+    </section>
+
+    <!-- Step 3: 맛 -->
+    <section class="screen" data-step="3">
+      <div class="scr-head">
+        <button class="back-chev" data-back><span>‹</span></button>
+        <div class="head-titles"><div class="t">맛은 어떻게 할까요?</div><div class="s">여러 개 골라도 돼요</div></div>
+        <div class="dots"><span></span><span></span><span></span><span class="on"></span><span></span></div>
+      </div>
+      <div class="scr-body"><div class="chip-grid" data-chips="taste"></div></div>
+      <div class="scr-footer">
+        <div class="nav-row"><button class="btn primary" data-next>다음</button></div>
+      </div>
+    </section>
+
+    <!-- Step 4: 확인 & 뽑기 -->
+    <section class="screen" data-step="4">
+      <div class="scr-head">
+        <button class="back-chev" data-back><span>‹</span></button>
+        <div class="head-titles"><div class="t">이대로 뽑을까요?</div><div class="s">고른 조건이에요</div></div>
+        <div class="dots"><span></span><span></span><span></span><span></span><span class="on"></span></div>
+      </div>
+      <div class="review-body">
+        <div class="review-block"><div class="rb-label">장르</div><div class="review-tags" id="rv-genre"></div></div>
+        <div class="review-block"><div class="rb-label">종류</div><div class="review-tags" id="rv-type"></div></div>
+        <div class="review-block"><div class="rb-label">온도</div><div class="review-tags" id="rv-temp"></div></div>
+        <div class="review-block"><div class="rb-label">맛</div><div class="review-tags" id="rv-taste"></div></div>
+        <div class="pool-box"><div class="num" id="poolNum">50</div><div class="lbl">개 중에서 한 장을 뽑아요</div></div>
+        <div class="relax-note" id="poolRelaxNote" style="display:none;"></div>
+      </div>
+      <div class="scr-footer">
+        <button class="pack-btn" id="drawBtn">카드팩 열기<span class="sub">랜덤으로 한 장 뽑기</span></button>
+        <button class="link-btn" id="clearBtn">필터 초기화</button>
+      </div>
+    </section>
+
+    <!-- Step 5: 결과 카드 -->
+    <section class="screen result-screen" data-step="5">
+      <div class="scr-head">
+        <button class="back-chev" data-back><span>‹</span></button>
+        <div class="head-titles"><div class="t">오늘의 메뉴</div><div class="s">카드를 탭하면 뒤집혀요</div></div>
+        <div style="width:34px"></div>
+      </div>
+      <div class="result-body">
+        <div class="card-perspective" id="cardPersp">
+          <div class="tilt" id="tilt">
+            <div class="card" id="card">
+              <div class="face front">
+                <div class="face-inner">
+                  <div class="card-top"><span class="genre-badge" id="cGenre">한식</span><span class="hp-badge" id="cKcalTop">320 kcal</span></div>
+                  <div class="art-frame"><span class="art-emoji" id="cEmoji">🍲</span></div>
+                  <div class="name-row"><h2 class="food-name" id="cName">음식 이름</h2></div>
+                  <div class="tag-row" id="cTags"></div>
+                  <p class="flavor-text" id="cShort">설명</p>
+                  <div class="card-footer"><span id="cFooterLeft">No. 01</span><span>탭해서 뒤집기 ↻</span></div>
+                </div>
+                <div class="foil foil-grain"></div>
+                <div class="foil foil-rainbow"></div>
+                <div class="foil foil-sparkle"></div>
+                <div class="foil foil-glare"></div>
+              </div>
+              <div class="face back">
+                <div class="back-inner">
+                  <div class="back-head"><span class="back-emoji" id="cEmojiBack">🍲</span><span class="back-title" id="cNameBack">음식 이름</span></div>
+                  <div class="kcal-big"><span class="num" id="cKcal">320</span><span class="unit"> kcal / 1인분</span></div>
+                  <div class="stat-line"><span class="k">장르</span><span class="v" id="cGenreBack">한식</span></div>
+                  <div class="stat-line"><span class="k">종류</span><span class="v" id="cTypeBack">국·탕</span></div>
+                  <div class="stat-line"><span class="k">온도</span><span class="v" id="cTempBack">뜨거운 음식</span></div>
+                  <p class="detail-text" id="cDetail">상세 설명</p>
+                </div>
+                <div class="foil foil-grain"></div>
+                <div class="foil foil-rainbow"></div>
+                <div class="foil foil-sparkle"></div>
+                <div class="foil foil-glare"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="result-actions">
+        <div class="result-btn-row">
+          <button class="btn ghost" id="changeBtn">조건 변경</button>
+          <button class="btn primary" id="againBtn">다시 뽑기</button>
+        </div>
+        <button class="gyro-btn" id="gyroBtn">📱 기울여서 반짝이기 (자이로 켜기)</button>
+      </div>
+    </section>
+
+  </div>
+
+  <button id="fab" title="지금 바로 랜덤 뽑기">⚡</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------- Data ---------------- */
+const GENRES = {
+  '한식': { g1:'#ff5f5f', g2:'#ff9d4d', g3:'#ffb37a' },
+  '중식': { g1:'#e2231a', g2:'#ffca28', g3:'#ff7043' },
+  '일식': { g1:'#ff8fab', g2:'#c9184a', g3:'#ffb3c6' },
+  '양식': { g1:'#3a86ff', g2:'#8338ec', g3:'#7cc4ff' },
+  '기타': { g1:'#2dd4bf', g2:'#22c55e', g3:'#5eead4' },
+};
+const DEFAULT_THEME = { g1:'#7c83fd', g2:'#4d5bf9', g3:'#9d7bff' };
+const TYPE_LABEL = { '면':'면 요리', '밥':'밥 요리', '국':'국·탕', '기타':'그 외' };
+const TEMP_LABEL = { '뜨거운':'뜨거운 음식', '차가운':'차갑거나 시원한 음식' };
+const TASTE_ICON = { '매운':'🌶️', '짠':'🧂', '단':'🍯', '심플':'🌿' };
+const GENRE_ICON = { '한식':'🇰🇷', '중식':'🇨🇳', '일식':'🇯🇵', '양식':'🍽️', '기타':'🌏' };
+const TYPE_ICON = { '면':'🍜', '밥':'🍚', '국':'🥣', '기타':'🍽️' };
+const TEMP_ICON = { '뜨거운':'🔥', '차가운':'🧊' };
+
+const FOODS = [
+  {name:'김치찌개', emoji:'🍲', genre:'한식', type:'국', temp:'뜨거운', taste:['매운','짠'], kcal:350, short:'묵은지와 돼지고기를 자작하게 끓인 얼큰한 국물 요리.', detail:'신 김치와 돼지고기, 두부를 넣고 오래 끓여 감칠맛과 산미가 진해요. 밥 한 공기와 먹으면 든든한 한 끼가 됩니다.'},
+  {name:'비빔밥', emoji:'🍚', genre:'한식', type:'밥', temp:'뜨거운', taste:['심플','짠'], kcal:560, short:'나물과 고추장을 밥 위에 올려 비벼 먹는 균형 잡힌 한 그릇.', detail:'각종 나물, 계란후라이, 고추장을 넣고 비벼 먹어요. 재료를 골고루 섭취할 수 있는 대표적인 건강식입니다.'},
+  {name:'떡볶이', emoji:'🍢', genre:'한식', type:'기타', temp:'뜨거운', taste:['매운','단'], kcal:480, short:'쫄깃한 떡을 매콤달콤한 고추장 양념에 조린 국민 간식.', detail:'떡과 어묵을 고추장 베이스 양념에 조려낸 분식. 매콤함과 단맛의 밸런스가 중독적이에요.'},
+  {name:'삼겹살', emoji:'🥓', genre:'한식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:700, short:'두툼한 돼지고기를 불판에 구워 쌈에 싸 먹는 회식 필수 메뉴.', detail:'노릇하게 구운 삼겹살을 상추와 마늘, 쌈장과 함께 싸 먹어요. 기름지고 고소한 풍미가 특징입니다.'},
+  {name:'냉면', emoji:'🍜', genre:'한식', type:'면', temp:'차가운', taste:['짠','심플'], kcal:480, short:'살얼음 육수에 메밀면을 말아 시원하게 먹는 여름 별미.', detail:'차가운 육수 또는 매콤한 양념에 메밀면을 비비거나 말아 먹어요. 더운 날 입맛을 확 돌려줍니다.'},
+  {name:'삼계탕', emoji:'🍗', genre:'한식', type:'국', temp:'뜨거운', taste:['심플','짠'], kcal:650, short:'영계에 찹쌀과 인삼을 넣고 푹 고아낸 보양식.', detail:'닭 한 마리를 인삼, 대추, 찹쌀과 함께 오래 끓여요. 담백하고 깊은 국물 맛이 특징인 보양 음식입니다.'},
+  {name:'불고기', emoji:'🥩', genre:'한식', type:'기타', temp:'뜨거운', taste:['단','짠'], kcal:430, short:'달콤짭짤한 양념에 재운 소고기를 볶아낸 한식 대표 메뉴.', detail:'간장 베이스 양념에 재운 소고기를 야채와 함께 볶아요. 남녀노소 좋아하는 부드럽고 달콤한 맛입니다.'},
+  {name:'잡채', emoji:'🍝', genre:'한식', type:'면', temp:'뜨거운', taste:['단','짠'], kcal:400, short:'당면과 채소, 고기를 간장 양념에 볶은 명절 단골 메뉴.', detail:'쫄깃한 당면에 시금치, 당근, 버섯, 고기를 넣고 참기름과 간장으로 볶아요. 달큰하고 고소해요.'},
+  {name:'김밥', emoji:'🍙', genre:'한식', type:'밥', temp:'차가운', taste:['짠','심플'], kcal:450, short:'밥과 재료를 김에 돌돌 말아낸 간편한 한 끼.', detail:'단무지, 햄, 계란, 시금치 등을 넣고 김에 말아요. 들고 다니기 좋은 대표적인 한식 패스트푸드입니다.'},
+  {name:'순두부찌개', emoji:'🥘', genre:'한식', type:'국', temp:'뜨거운', taste:['매운','짠'], kcal:320, short:'몽글몽글한 순두부를 매콤한 국물에 끓인 얼큰 찌개.', detail:'부드러운 순두부와 해물 또는 고기를 넣고 얼큰하게 끓여요. 계란을 톡 풀면 더 부드러워집니다.'},
+  {name:'짜장면', emoji:'🍝', genre:'중식', type:'면', temp:'뜨거운', taste:['단','짠'], kcal:670, short:'춘장 소스를 볶아 면에 비벼 먹는 한국식 중화요리.', detail:'돼지고기와 채소를 춘장에 볶은 소스를 면 위에 올려요. 달큰하고 짭짤한 소스가 면에 착 감깁니다.'},
+  {name:'짬뽕', emoji:'🍜', genre:'중식', type:'면', temp:'뜨거운', taste:['매운','짠'], kcal:600, short:'해물과 채소를 넣고 얼큰하게 볶아 끓인 매운 국물 면.', detail:'각종 해물과 채소를 기름에 볶은 뒤 육수를 부어 끓여요. 불맛과 매콤함이 어우러진 국물이 일품입니다.'},
+  {name:'탕수육', emoji:'🍖', genre:'중식', type:'기타', temp:'뜨거운', taste:['단','짠'], kcal:750, short:'바삭한 튀김옷의 고기에 새콤달콤 소스를 올린 요리.', detail:'튀긴 고기 위에 새콤달콤한 소스를 부어 먹어요. 부먹이냐 찍먹이냐로 늘 논쟁이 되는 인기 메뉴입니다.'},
+  {name:'마파두부', emoji:'🥘', genre:'중식', type:'밥', temp:'뜨거운', taste:['매운','짠'], kcal:420, short:'두부와 다진 고기를 매콤한 두반장 소스로 볶은 덮밥용 요리.', detail:'부드러운 두부에 다진 고기와 두반장 소스를 넣고 볶아요. 얼얼한 매콤함이 밥과 잘 어울립니다.'},
+  {name:'양장피', emoji:'🥗', genre:'중식', type:'기타', temp:'차가운', taste:['짠','심플'], kcal:480, short:'해물과 채소, 탱글한 양장피를 겨자소스에 버무린 냉채.', detail:'각종 해물과 고기, 채소를 얇은 양장피와 함께 겨자소스에 무쳐요. 새콤하고 시원한 맛이 특징입니다.'},
+  {name:'딤섬', emoji:'🥟', genre:'중식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:280, short:'얇은 피 안에 소를 채워 쪄낸 한입 크기의 중화 만두.', detail:'새우, 고기 등 다양한 소를 얇은 피로 감싸 쪄요. 부드럽고 촉촉한 식감으로 가볍게 즐기기 좋습니다.'},
+  {name:'중식 볶음밥', emoji:'🍛', genre:'중식', type:'밥', temp:'뜨거운', taste:['짠','심플'], kcal:600, short:'센 불에 밥과 재료를 볶아 불맛을 낸 중화요리.', detail:'계란, 파, 햄 등을 넣고 강한 불에서 빠르게 볶아요. 고슬고슬한 밥알과 불맛이 매력입니다.'},
+  {name:'유린기', emoji:'🍗', genre:'중식', type:'기타', temp:'뜨거운', taste:['단','짠'], kcal:520, short:'바삭하게 튀긴 닭에 새콤달콤한 간장소스를 얹은 요리.', detail:'튀긴 닭고기를 채소와 함께 새콤달콤한 소스에 버무려요. 바삭함과 상큼함을 동시에 즐길 수 있어요.'},
+  {name:'마라탕', emoji:'🍲', genre:'중식', type:'국', temp:'뜨거운', taste:['매운','짠'], kcal:550, short:'원하는 재료를 담아 얼얼한 마라 육수에 끓여내는 요리.', detail:'고기, 채소, 면 등을 골라 담으면 얼얼하고 매운 마라 육수에 끓여줘요. 혀가 얼얼한 화끈함이 특징입니다.'},
+  {name:'고추잡채', emoji:'🥘', genre:'중식', type:'기타', temp:'뜨거운', taste:['매운','짠'], kcal:390, short:'가늘게 썬 고기와 피망을 매콤하게 볶은 중화 볶음 요리.', detail:'돼지고기와 피망, 죽순 등을 가늘게 썰어 매콤하게 볶아요. 밥에 곁들이면 감칠맛이 더해집니다.'},
+  {name:'초밥', emoji:'🍣', genre:'일식', type:'밥', temp:'차가운', taste:['짠','심플'], kcal:400, short:'식초로 간한 밥 위에 신선한 재료를 올린 일식 대표 메뉴.', detail:'초밥용 밥 위에 생선, 새우 등의 재료를 올려요. 재료 본연의 신선함을 살린 담백한 맛입니다.'},
+  {name:'라멘', emoji:'🍜', genre:'일식', type:'면', temp:'뜨거운', taste:['짠','심플'], kcal:550, short:'진한 육수에 쫄깃한 면과 차슈를 올린 일본식 국수.', detail:'돈코츠나 간장 등 진한 육수에 면과 차슈, 계란을 올려요. 깊고 진한 국물 맛이 특징입니다.'},
+  {name:'우동', emoji:'🍜', genre:'일식', type:'면', temp:'뜨거운', taste:['짠','심플'], kcal:420, short:'굵고 쫄깃한 면발을 담백한 가쓰오 육수에 말아낸 국수.', detail:'통통한 면발을 맑고 깔끔한 가쓰오부시 육수에 말아요. 부드럽고 편안한 맛이 매력입니다.'},
+  {name:'돈카츠', emoji:'🍱', genre:'일식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:650, short:'두꺼운 돈육에 빵가루를 입혀 바삭하게 튀긴 커틀릿.', detail:'두툼한 돼지고기에 빵가루를 묻혀 바삭하게 튀겨요. 소스에 찍어 먹으면 육즙과 바삭함이 살아있습니다.'},
+  {name:'규동', emoji:'🍚', genre:'일식', type:'밥', temp:'뜨거운', taste:['단','짠'], kcal:600, short:'달콤짭짤하게 조린 소고기와 양파를 밥 위에 올린 덮밥.', detail:'얇게 썬 소고기와 양파를 간장 베이스로 달게 조려 밥 위에 얹어요. 간단하지만 든든한 한 그릇입니다.'},
+  {name:'오니기리', emoji:'🍙', genre:'일식', type:'밥', temp:'차가운', taste:['짠','심플'], kcal:200, short:'밥을 삼각형으로 뭉쳐 김으로 감싼 일본식 주먹밥.', detail:'속재료를 넣고 뭉친 밥을 김으로 감싸요. 가볍게 먹기 좋은 대표적인 일본 간편식입니다.'},
+  {name:'텐동', emoji:'🍤', genre:'일식', type:'밥', temp:'뜨거운', taste:['짠','심플'], kcal:680, short:'바삭한 튀김을 달콤짭짤한 소스와 함께 밥에 올린 덮밥.', detail:'새우와 채소 튀김을 밥 위에 얹고 달콤한 간장 소스를 뿌려요. 바삭함과 소스의 조화가 좋아요.'},
+  {name:'소바', emoji:'🍜', genre:'일식', type:'면', temp:'차가운', taste:['짠','심플'], kcal:350, short:'메밀면을 시원한 쯔유에 찍어 먹는 깔끔한 일본식 국수.', detail:'차가운 메밀면을 짭짤한 쯔유 소스에 살짝 찍어 먹어요. 고소하고 담백해 더운 날 즐기기 좋습니다.'},
+  {name:'미소시루', emoji:'🥣', genre:'일식', type:'국', temp:'뜨거운', taste:['짠','심플'], kcal:90, short:'된장을 풀어 두부와 미역을 넣고 끓인 일본식 된장국.', detail:'미소된장을 물에 풀고 두부, 미역, 파를 넣어 끓여요. 가볍고 깔끔해 다른 요리와 곁들이기 좋아요.'},
+  {name:'타코야키', emoji:'🐙', genre:'일식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:330, short:'문어를 넣은 반죽을 동그랗게 구워낸 일본식 길거리 간식.', detail:'문어와 반죽을 동그란 틀에 구워 소스와 가쓰오부시를 올려요. 겉은 바삭 속은 촉촉합니다.'},
+  {name:'스테이크', emoji:'🥩', genre:'양식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:600, short:'두꺼운 소고기를 취향껏 구워낸 묵직한 서양식 메인 요리.', detail:'소고기 부위를 원하는 굽기로 구워요. 육즙과 풍미를 최대한 살린 클래식한 서양 요리입니다.'},
+  {name:'피자', emoji:'🍕', genre:'양식', type:'기타', temp:'뜨거운', taste:['짠','단'], kcal:800, short:'도우 위에 치즈와 토핑을 올려 구워낸 이탈리아 대표 요리.', detail:'토마토소스나 크림소스 위에 치즈와 토핑을 얹어 구워요. 쭉 늘어나는 치즈가 특징이에요.'},
+  {name:'토마토 파스타', emoji:'🍝', genre:'양식', type:'면', temp:'뜨거운', taste:['짠','단'], kcal:550, short:'토마토소스에 면을 볶아낸 상큼하고 깔끔한 이탈리안 면 요리.', detail:'토마토소스를 면과 함께 볶아 마늘과 바질로 향을 더해요. 새콤하고 깔끔한 맛이 특징입니다.'},
+  {name:'리조또', emoji:'🍚', genre:'양식', type:'밥', temp:'뜨거운', taste:['짠','심플'], kcal:480, short:'쌀을 육수로 천천히 조리해 크리미하게 만든 이탈리안 밥 요리.', detail:'쌀을 육수와 버터, 치즈로 저어가며 익혀요. 걸쭉하고 부드러운 식감이 특징인 요리입니다.'},
+  {name:'햄버거', emoji:'🍔', genre:'양식', type:'기타', temp:'뜨거운', taste:['짠','단'], kcal:700, short:'패티와 채소를 빵 사이에 넣은 미국식 대표 패스트푸드.', detail:'구운 패티에 치즈, 채소, 소스를 넣고 빵으로 감싸요. 한 손으로 간편하게 즐기는 메뉴입니다.'},
+  {name:'시저샐러드', emoji:'🥗', genre:'양식', type:'기타', temp:'차가운', taste:['짠','심플'], kcal:250, short:'로메인에 파마산 치즈와 크루통을 올린 클래식 샐러드.', detail:'로메인 상추에 시저드레싱, 파마산 치즈, 크루통을 곁들여요. 가볍게 즐기기 좋은 서양식 샐러드입니다.'},
+  {name:'크림 파스타', emoji:'🍝', genre:'양식', type:'면', temp:'뜨거운', taste:['짠','단'], kcal:680, short:'생크림 소스에 면을 볶아낸 부드럽고 고소한 파스타.', detail:'생크림과 치즈를 베이스로 한 소스에 면을 볶아요. 진하고 부드러운 맛이 특징입니다.'},
+  {name:'오믈렛', emoji:'🍳', genre:'양식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:300, short:'계란을 부드럽게 익혀 속재료를 감싼 프렌치 스타일 계란 요리.', detail:'풀어낸 계란을 팬에 얇게 익혀 치즈나 채소를 넣고 말아요. 폭신하고 부드러운 식감입니다.'},
+  {name:'감바스', emoji:'🍤', genre:'양식', type:'기타', temp:'뜨거운', taste:['매운','짠'], kcal:420, short:'새우를 올리브오일과 마늘에 지글지글 익혀낸 스페인 타파스.', detail:'새우를 올리브오일, 마늘, 페페론치노와 함께 끓이듯 익혀요. 빵을 찍어 먹기 좋은 술안주입니다.'},
+  {name:'클램차우더', emoji:'🥣', genre:'양식', type:'국', temp:'뜨거운', taste:['짠','심플'], kcal:380, short:'조개와 감자를 넣고 크림으로 끓여낸 진한 미국식 수프.', detail:'조개, 감자, 베이컨을 크림 베이스 국물에 끓여요. 진하고 고소한 서양식 수프입니다.'},
+  {name:'팟타이', emoji:'🍝', genre:'기타', type:'면', temp:'뜨거운', taste:['단','짠'], kcal:520, short:'쌀국수 면을 새콤달콤하게 볶아낸 태국 대표 볶음면.', detail:'납작한 쌀면을 새우, 계란과 함께 타마린드 소스로 볶아요. 새콤달콤하고 고소한 맛이 특징입니다.'},
+  {name:'베트남 쌀국수', emoji:'🍜', genre:'기타', type:'면', temp:'뜨거운', taste:['짠','심플'], kcal:450, short:'맑은 소고기 육수에 쌀면을 말아낸 베트남식 국수.', detail:'향신료로 우려낸 맑은 육수에 쌀면과 소고기를 넣어요. 깔끔하고 개운한 국물이 특징입니다.'},
+  {name:'나시고렝', emoji:'🍛', genre:'기타', type:'밥', temp:'뜨거운', taste:['매운','짠'], kcal:580, short:'매콤한 삼발소스로 볶아낸 인도네시아식 볶음밥.', detail:'삼발소스와 새우, 계란프라이를 곁들여 밥을 볶아요. 알싸하고 향긋한 향신료 풍미가 특징입니다.'},
+  {name:'똠얌꿍', emoji:'🍲', genre:'기타', type:'국', temp:'뜨거운', taste:['매운','짠'], kcal:280, short:'새우와 향신료를 넣어 시고 맵게 끓인 태국식 수프.', detail:'레몬그라스, 고수 등 향신료와 새우를 넣고 새콤하고 맵게 끓여요. 강렬한 향과 자극적인 맛이 특징입니다.'},
+  {name:'케밥', emoji:'🌯', genre:'기타', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:550, short:'구운 고기와 채소를 빵에 싸서 소스와 함께 먹는 중동식 음식.', detail:'구운 고기를 채소, 소스와 함께 또띠아나 빵에 싸요. 든든하고 간편하게 즐길 수 있습니다.'},
+  {name:'카레라이스', emoji:'🍛', genre:'기타', type:'밥', temp:'뜨거운', taste:['단','심플'], kcal:620, short:'채소와 고기를 카레 소스에 끓여 밥에 곁들이는 요리.', detail:'감자, 당근, 고기를 카레 가루와 함께 끓여 걸쭉하게 만들어요. 부드럽고 은은한 향신료 맛입니다.'},
+  {name:'분짜', emoji:'🍜', genre:'기타', type:'면', temp:'차가운', taste:['짠','단'], kcal:480, short:'숯불에 구운 고기와 쌀국수를 새콤달콤한 소스에 찍어 먹는 요리.', detail:'구운 돼지고기와 쌀국수 면을 새콤달콤한 느억맘 소스에 찍어 먹어요. 향긋한 허브와 잘 어울립니다.'},
+  {name:'반미', emoji:'🥖', genre:'기타', type:'기타', temp:'차가운', taste:['짠','심플'], kcal:420, short:'바게트에 고기와 채소를 채운 베트남식 샌드위치.', detail:'바삭한 바게트 속에 고기, 오이, 고수, 소스를 채워요. 가볍지만 풍미가 가득한 길거리 음식입니다.'},
+  {name:'아이스크림', emoji:'🍦', genre:'기타', type:'기타', temp:'차가운', taste:['단'], kcal:250, short:'우유와 크림을 얼려 부드럽고 달콤하게 즐기는 디저트.', detail:'우유, 크림, 설탕을 얼려 부드러운 식감으로 만들어요. 더운 날 입가심으로 인기가 많습니다.'},
+  {name:'빙수', emoji:'🍧', genre:'기타', type:'기타', temp:'차가운', taste:['단','심플'], kcal:400, short:'곱게 간 얼음 위에 과일과 팥, 시럽을 올린 여름 디저트.', detail:'부드러운 얼음 위에 팥, 과일, 연유 등을 올려요. 시원하고 달콤해 더위를 날려주는 디저트입니다.'},
+
+  {name:'갈비탕', emoji:'🍲', genre:'한식', type:'국', temp:'뜨거운', taste:['심플','짠'], kcal:480, short:'소갈비를 맑게 우려낸 깊고 담백한 국물 요리.', detail:'갈비와 무를 넣고 맑게 우려낸 국물에 당면을 곁들여요. 담백하면서도 깊은 감칠맛이 특징입니다.'},
+  {name:'육개장', emoji:'🍲', genre:'한식', type:'국', temp:'뜨거운', taste:['매운','짠'], kcal:400, short:'고사리와 소고기를 매콤하게 끓인 얼큰한 국.', detail:'소고기와 고사리, 대파를 넣고 얼큰하게 끓여요. 얼큰하면서도 깊은 육수 맛이 특징인 보양식입니다.'},
+  {name:'제육볶음', emoji:'🥘', genre:'한식', type:'기타', temp:'뜨거운', taste:['매운','짠'], kcal:450, short:'매콤한 고추장 양념에 돼지고기를 볶은 밥반찬.', detail:'돼지고기를 고추장 양념에 재워 채소와 함께 볶아요. 밥과 함께 먹으면 매콤한 감칠맛이 일품입니다.'},
+  {name:'갈비찜', emoji:'🍖', genre:'한식', type:'기타', temp:'뜨거운', taste:['단','짠'], kcal:520, short:'갈비를 간장 양념에 달콤짭짤하게 조린 명절 요리.', detail:'소갈비를 간장, 배, 마늘 양념에 오래 조려요. 부드럽게 익은 고기와 달콤한 양념이 잘 어울립니다.'},
+  {name:'부대찌개', emoji:'🍲', genre:'한식', type:'국', temp:'뜨거운', taste:['매운','짠'], kcal:550, short:'햄과 소시지, 김치를 넣고 얼큰하게 끓인 퓨전 찌개.', detail:'햄, 소시지, 김치, 라면사리를 넣고 얼큰하게 끓여요. 여러 재료가 어우러진 진한 국물이 특징입니다.'},
+  {name:'콩나물국밥', emoji:'🍚', genre:'한식', type:'국', temp:'뜨거운', taste:['심플','짠'], kcal:380, short:'콩나물 국물에 밥을 말아 먹는 담백한 해장 음식.', detail:'콩나물을 맑게 끓인 국물에 밥을 말아요. 얼큰하게 즐기려면 청양고추나 양념을 더해도 좋아요.'},
+  {name:'칼국수', emoji:'🍜', genre:'한식', type:'면', temp:'뜨거운', taste:['짠','심플'], kcal:480, short:'굵게 썬 밀가루 면을 멸치 육수에 끓인 구수한 면 요리.', detail:'손으로 썬 두툼한 면을 멸치나 사골 육수에 끓여요. 쫄깃한 면발과 구수한 국물이 특징입니다.'},
+  {name:'열무국수', emoji:'🍜', genre:'한식', type:'면', temp:'차가운', taste:['짠','심플'], kcal:380, short:'열무김치 국물에 국수를 말아 새콤하게 먹는 여름 국수.', detail:'새콤한 열무김치 국물에 소면을 말아요. 새콤하고 시원해 더운 날 입맛을 살려줍니다.'},
+  {name:'낙지볶음', emoji:'🐙', genre:'한식', type:'기타', temp:'뜨거운', taste:['매운','짠'], kcal:420, short:'낙지를 매콤한 양념에 볶아낸 얼큰한 해물 요리.', detail:'낙지를 고추장 양념에 센 불로 볶아요. 쫄깃한 식감과 화끈한 매운맛이 특징입니다.'},
+  {name:'된장찌개', emoji:'🍲', genre:'한식', type:'국', temp:'뜨거운', taste:['심플','짠'], kcal:300, short:'된장을 풀어 두부와 채소를 넣고 구수하게 끓인 찌개.', detail:'된장에 두부, 감자, 애호박을 넣고 구수하게 끓여요. 짭짤하고 편안한 한식 기본 찌개입니다.'},
+
+  {name:'깐풍기', emoji:'🍗', genre:'중식', type:'기타', temp:'뜨거운', taste:['매운','단'], kcal:560, short:'바삭하게 튀긴 닭을 매콤달콤하게 볶은 중화요리.', detail:'튀긴 닭고기를 매콤달콤한 간장 소스에 볶아요. 겉은 바삭 속은 촉촉한 식감이 특징입니다.'},
+  {name:'팔보채', emoji:'🦐', genre:'중식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:400, short:'해산물과 채소를 걸쭉한 소스에 볶은 고급 중화요리.', detail:'해삼, 새우, 전복 등 다양한 재료를 볶아 걸쭉한 소스로 마무리해요. 재료 본연의 맛이 살아있습니다.'},
+  {name:'새우볶음밥', emoji:'🍤', genre:'중식', type:'밥', temp:'뜨거운', taste:['짠','심플'], kcal:580, short:'탱글한 새우를 넣고 고슬고슬하게 볶은 볶음밥.', detail:'새우와 계란, 파를 넣고 센 불에 볶아요. 탱글한 새우와 불맛이 조화를 이룹니다.'},
+  {name:'우육면', emoji:'🍜', genre:'중식', type:'면', temp:'뜨거운', taste:['짠','심플'], kcal:550, short:'소고기를 푹 끓인 육수에 면을 말아낸 중화 국수.', detail:'소고기와 향신료를 오래 끓인 육수에 면을 말아요. 깊고 진한 육수 맛이 특징입니다.'},
+  {name:'훈툰탕', emoji:'🥟', genre:'중식', type:'국', temp:'뜨거운', taste:['짠','심플'], kcal:320, short:'만두를 맑은 육수에 넣고 끓인 담백한 중화 만두국.', detail:'얇은 피에 소를 채운 만두를 맑은 육수에 끓여요. 가볍고 부드러운 한 그릇입니다.'},
+  {name:'멘보샤', emoji:'🍞', genre:'중식', type:'기타', temp:'뜨거운', taste:['짠','단'], kcal:480, short:'새우살을 식빵 사이에 넣고 튀긴 중화 요리.', detail:'다진 새우살을 식빵 사이에 채워 튀겨요. 겉은 바삭하고 속은 탱글한 새우 식감이 매력입니다.'},
+  {name:'라조기', emoji:'🍗', genre:'중식', type:'기타', temp:'뜨거운', taste:['매운','짠'], kcal:500, short:'닭고기를 매콤한 고추와 함께 볶은 얼큰한 중화요리.', detail:'튀긴 닭고기를 마른 고추와 함께 매콤하게 볶아요. 알싸하고 화끈한 매운맛이 특징입니다.'},
+  {name:'동파육', emoji:'🥓', genre:'중식', type:'기타', temp:'뜨거운', taste:['단','짠'], kcal:620, short:'삼겹살을 간장에 오래 졸여 부드럽게 만든 중화요리.', detail:'통삼겹살을 간장 양념에 오래 졸여요. 입에서 녹는 부드러운 식감과 달콤짭짤한 맛이 특징입니다.'},
+  {name:'짜장밥', emoji:'🍛', genre:'중식', type:'밥', temp:'뜨거운', taste:['단','짠'], kcal:650, short:'짜장 소스를 밥 위에 부어 비벼 먹는 중화요리.', detail:'돼지고기와 채소를 춘장에 볶은 소스를 밥에 부어요. 짜장면과 비슷하지만 더 든든한 한 그릇입니다.'},
+  {name:'중국냉면', emoji:'🍜', genre:'중식', type:'면', temp:'차가운', taste:['짠','심플'], kcal:450, short:'새콤달콤한 소스에 비벼 먹는 중화풍 냉면.', detail:'차가운 면에 오이, 햄을 올리고 겨자와 식초 소스로 비벼요. 새콤하고 시원한 여름 별미입니다.'},
+
+  {name:'규카츠', emoji:'🍱', genre:'일식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:600, short:'소고기에 튀김옷을 입혀 겉바속레어로 튀긴 커틀릿.', detail:'소고기 안심에 빵가루를 입혀 짧게 튀겨요. 겉은 바삭하고 속은 부드러운 레어 식감이 특징입니다.'},
+  {name:'가라아게', emoji:'🍗', genre:'일식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:480, short:'간장에 재운 닭고기를 튀김가루 입혀 바삭하게 튀긴 요리.', detail:'간장과 생강에 재운 닭다리살을 튀겨요. 짭짤하게 간이 밴 바삭한 튀김이 특징입니다.'},
+  {name:'나베', emoji:'🍲', genre:'일식', type:'국', temp:'뜨거운', taste:['짠','심플'], kcal:450, short:'육수에 채소와 고기를 넣고 즉석에서 끓여 먹는 일본식 전골.', detail:'육수에 배추, 버섯, 고기 등을 넣고 끓여가며 먹어요. 따뜻하고 재료 본연의 맛을 즐길 수 있습니다.'},
+  {name:'오코노미야키', emoji:'🥞', genre:'일식', type:'기타', temp:'뜨거운', taste:['짠','단'], kcal:500, short:'양배추와 반죽을 철판에 부쳐낸 일본식 부침개.', detail:'양배추, 반죽, 고기를 섞어 철판에 부쳐요. 달콤짭짤한 소스와 가쓰오부시 토핑이 특징입니다.'},
+  {name:'연어덮밥', emoji:'🍣', genre:'일식', type:'밥', temp:'차가운', taste:['짠','심플'], kcal:480, short:'신선한 연어회를 밥 위에 올린 일본식 덮밥.', detail:'얇게 썬 연어회를 초밥용 밥 위에 올려요. 부드럽고 신선한 연어의 풍미를 그대로 즐길 수 있습니다.'},
+  {name:'카레동', emoji:'🍛', genre:'일식', type:'밥', temp:'뜨거운', taste:['단','심플'], kcal:640, short:'일본식 카레를 밥 위에 부어 먹는 덮밥.', detail:'걸쭉한 일본식 카레 소스를 밥 위에 부어요. 은은하게 달콤한 향신료 맛이 특징입니다.'},
+  {name:'자루소바', emoji:'🍜', genre:'일식', type:'면', temp:'차가운', taste:['짠','심플'], kcal:340, short:'차가운 메밀면을 대나무 채반에 담아내는 소바.', detail:'삶아 헹군 메밀면을 채반에 담아 쯔유에 찍어 먹어요. 깔끔하고 시원한 맛이 특징입니다.'},
+  {name:'나가사키짬뽕', emoji:'🍜', genre:'일식', type:'면', temp:'뜨거운', taste:['짠','심플'], kcal:520, short:'해물과 채소를 넣고 하얗게 끓인 일본식 짬뽕.', detail:'돈코츠 육수 베이스에 해물과 채소를 듬뿍 넣어요. 한국식 짬뽕보다 순하고 진한 맛입니다.'},
+  {name:'오야코동', emoji:'🍚', genre:'일식', type:'밥', temp:'뜨거운', taste:['단','짠'], kcal:560, short:'닭고기와 계란을 달게 조려 밥 위에 얹은 덮밥.', detail:'닭고기와 양파를 간장 국물에 익히고 계란으로 마무리해 밥에 얹어요. 부드럽고 포근한 맛입니다.'},
+  {name:'사케동', emoji:'🍣', genre:'일식', type:'밥', temp:'차가운', taste:['짠','심플'], kcal:460, short:'연어를 큼직하게 썰어 밥 위에 올린 일본식 덮밥.', detail:'신선한 연어를 두툼하게 썰어 밥 위에 올려요. 담백하고 고소한 연어의 맛을 그대로 즐길 수 있습니다.'},
+
+  {name:'라자냐', emoji:'🍝', genre:'양식', type:'기타', temp:'뜨거운', taste:['짠','단'], kcal:650, short:'면과 미트소스, 치즈를 겹겹이 쌓아 구운 이탈리안 요리.', detail:'넓은 파스타 면 사이에 미트소스와 치즈를 겹겹이 쌓아 구워요. 진하고 묵직한 맛이 특징입니다.'},
+  {name:'필라프', emoji:'🍚', genre:'양식', type:'밥', temp:'뜨거운', taste:['짠','심플'], kcal:420, short:'쌀을 버터에 볶다가 육수로 익혀낸 서양식 볶음밥.', detail:'쌀을 버터와 양파에 볶은 뒤 육수를 부어 익혀요. 고슬고슬하고 고소한 풍미가 특징입니다.'},
+  {name:'비프스튜', emoji:'🍲', genre:'양식', type:'국', temp:'뜨거운', taste:['짠','심플'], kcal:480, short:'소고기와 채소를 오래 끓여 걸쭉하게 만든 서양식 스튜.', detail:'소고기와 감자, 당근을 오래 끓여 걸쭉하게 만들어요. 깊고 진한 맛이 특징인 서양식 국물 요리입니다.'},
+  {name:'그라탕', emoji:'🧀', genre:'양식', type:'기타', temp:'뜨거운', taste:['짠','단'], kcal:550, short:'화이트소스와 치즈를 올려 오븐에 구운 서양식 요리.', detail:'감자나 채소에 화이트소스와 치즈를 올려 오븐에 구워요. 겉은 바삭하고 속은 크리미합니다.'},
+  {name:'BLT샌드위치', emoji:'🥪', genre:'양식', type:'기타', temp:'차가운', taste:['짠','심플'], kcal:480, short:'베이컨과 상추, 토마토를 빵 사이에 넣은 샌드위치.', detail:'바삭한 베이컨과 신선한 상추, 토마토를 빵에 끼워요. 짭짤하고 아삭한 조합이 특징입니다.'},
+  {name:'로스트치킨', emoji:'🍗', genre:'양식', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:600, short:'통닭을 허브와 함께 오븐에 노릇하게 구운 요리.', detail:'통닭에 허브와 향신료를 발라 오븐에 구워요. 겉은 바삭하고 속은 촉촉한 육즙이 특징입니다.'},
+  {name:'미네스트로네', emoji:'🥣', genre:'양식', type:'국', temp:'뜨거운', taste:['짠','심플'], kcal:220, short:'각종 채소와 파스타를 넣고 끓인 이탈리안 야채 수프.', detail:'토마토 베이스 육수에 여러 채소와 작은 파스타를 넣어요. 가볍고 건강한 서양식 수프입니다.'},
+  {name:'봉골레파스타', emoji:'🍝', genre:'양식', type:'면', temp:'뜨거운', taste:['짠','심플'], kcal:500, short:'조개를 화이트와인에 볶아 면과 함께 낸 오일 파스타.', detail:'조개를 마늘, 화이트와인과 함께 볶아 면과 비벼요. 깔끔하고 감칠맛 나는 해산물 파스타입니다.'},
+  {name:'프렌치토스트', emoji:'🍞', genre:'양식', type:'기타', temp:'뜨거운', taste:['단','심플'], kcal:400, short:'계란물에 적신 식빵을 노릇하게 구운 브런치 메뉴.', detail:'식빵을 계란물과 우유에 적셔 버터에 구워요. 달콤하고 폭신한 브런치 대표 메뉴입니다.'},
+  {name:'클럽샌드위치', emoji:'🥪', genre:'양식', type:'기타', temp:'차가운', taste:['짠','심플'], kcal:520, short:'닭고기와 베이컨, 채소를 여러 층으로 쌓은 샌드위치.', detail:'닭가슴살, 베이컨, 토마토, 상추를 층층이 쌓아요. 삼각형으로 잘라 간편하게 즐길 수 있습니다.'},
+
+  {name:'팟씨유', emoji:'🍝', genre:'기타', type:'면', temp:'뜨거운', taste:['짠','단'], kcal:540, short:'넓적한 쌀면을 간장 소스에 볶은 태국식 볶음면.', detail:'넓은 쌀면과 계란, 브로콜리를 간장 베이스 소스에 볶아요. 고소하고 짭짤한 맛이 특징입니다.'},
+  {name:'카오팟', emoji:'🍛', genre:'기타', type:'밥', temp:'뜨거운', taste:['짠','심플'], kcal:500, short:'태국식 향신료로 볶아낸 향긋한 볶음밥.', detail:'쌀과 계란, 새우를 향신료와 함께 볶아요. 향긋하고 고슬고슬한 태국식 볶음밥입니다.'},
+  {name:'사테꼬치', emoji:'🍢', genre:'기타', type:'기타', temp:'뜨거운', taste:['단','짠'], kcal:350, short:'고기를 꼬치에 꿰어 땅콩소스와 먹는 동남아 꼬치구이.', detail:'양념한 고기를 꼬치에 꿰어 숯불에 구워요. 고소한 땅콩소스에 찍어 먹는 것이 특징입니다.'},
+  {name:'그린커리', emoji:'🍲', genre:'기타', type:'국', temp:'뜨거운', taste:['매운','짠'], kcal:420, short:'코코넛밀크와 그린칠리로 만든 매콤한 태국식 커리.', detail:'코코넛밀크에 그린칠리 페이스트와 고기, 채소를 넣고 끓여요. 알싸하고 크리미한 맛이 특징입니다.'},
+  {name:'커리라면', emoji:'🍜', genre:'기타', type:'면', temp:'뜨거운', taste:['매운','짠'], kcal:480, short:'카레 향이 은은하게 밴 매콤한 라면 요리.', detail:'카레 가루를 넣고 얼큰하게 끓인 라면이에요. 색다른 향신료 향과 매콤함을 함께 즐길 수 있습니다.'},
+  {name:'인도카레', emoji:'🍛', genre:'기타', type:'밥', temp:'뜨거운', taste:['매운','단'], kcal:550, short:'다양한 향신료로 깊은 풍미를 낸 인도식 커리.', detail:'여러 향신료와 고기, 채소를 오래 끓여 깊은 맛을 내요. 난이나 밥과 함께 먹기 좋습니다.'},
+  {name:'탄두리치킨', emoji:'🍗', genre:'기타', type:'기타', temp:'뜨거운', taste:['매운','짠'], kcal:400, short:'요거트와 향신료에 재워 화덕에 구운 인도식 치킨.', detail:'요거트와 향신료에 재운 닭고기를 화덕에 구워요. 붉은 빛깔과 알싸한 향신료 향이 특징입니다.'},
+  {name:'난', emoji:'🫓', genre:'기타', type:'기타', temp:'뜨거운', taste:['짠','심플'], kcal:300, short:'화덕에 구워낸 쫄깃한 인도식 납작빵.', detail:'밀가루 반죽을 화덕 벽에 붙여 구워요. 쫄깃하고 고소해 커리에 찍어 먹기 좋습니다.'},
+  {name:'미고렝', emoji:'🍝', genre:'기타', type:'면', temp:'뜨거운', taste:['단','짠'], kcal:520, short:'달콤짭짤한 간장 소스로 볶아낸 인도네시아식 볶음면.', detail:'노란 면을 케첩마니스와 향신료로 볶아요. 달콤짭짤하고 감칠맛 나는 볶음면입니다.'},
+  {name:'스프링롤', emoji:'🥗', genre:'기타', type:'기타', temp:'차가운', taste:['짠','심플'], kcal:220, short:'채소와 고기를 라이스페이퍼에 말아낸 베트남식 롤.', detail:'채소, 새우, 허브를 라이스페이퍼에 말아요. 가볍고 상큼해 소스에 찍어 먹기 좋습니다.'},
+];
+
+/* ---------------- State ---------------- */
+const state = { genre: new Set(), type: new Set(), temp: new Set(), taste: new Set() };
+let currentStep = 0;
+let gyroOn = false;
+let rafId = null;
+const target = { x: 0, y: 0 };
+const cur = { x: 0, y: 0 };
+
+const app = document.getElementById('app');
+const track = document.getElementById('track');
+const fab = document.getElementById('fab');
+const toastEl = document.getElementById('toast');
+const cardPersp = document.getElementById('cardPersp');
+const tiltEl = document.getElementById('tilt');
+const cardEl = document.getElementById('card');
+
+/* ---------------- Build filter chips ---------------- */
+function buildChips(group, options, iconMap) {
+  const row = document.querySelector(`[data-chips="${group}"]`);
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.type = 'button';
+    btn.innerHTML = `<span class="ico">${iconMap[opt]}</span><span>${opt}</span>`;
+    btn.addEventListener('click', () => {
+      if (state[group].has(opt)) { state[group].delete(opt); btn.classList.remove('on'); }
+      else { state[group].add(opt); btn.classList.add('on'); }
+      previewTheme();
+    });
+    row.appendChild(btn);
+  });
+}
+buildChips('genre', Object.keys(GENRES), GENRE_ICON);
+buildChips('type', ['면','밥','국','기타'], TYPE_ICON);
+buildChips('temp', ['뜨거운','차가운'], TEMP_ICON);
+buildChips('taste', ['매운','짠','단','심플'], TASTE_ICON);
+
+function previewTheme() {
+  if (state.genre.size === 0) { setTheme(DEFAULT_THEME); return; }
+  const last = [...state.genre][state.genre.size - 1];
+  setTheme(GENRES[last]);
+}
+
+/* ---------------- Pool (with auto-relax so results never go below MIN_POOL) ---------------- */
+const MIN_POOL = 5;
+const RELAX_ORDER = ['taste', 'temp', 'type', 'genre']; // 이 순서대로 하나씩 조건을 풀어줌
+const GROUP_LABEL = { genre: '장르', type: '종류', temp: '온도', taste: '맛' };
+
+function filterWith(active) {
+  return FOODS.filter(f => {
+    if (active.genre.size && !active.genre.has(f.genre)) return false;
+    if (active.type.size && !active.type.has(f.type)) return false;
+    if (active.temp.size && !active.temp.has(f.temp)) return false;
+    if (active.taste.size && !f.taste.some(t => active.taste.has(t))) return false;
+    return true;
+  });
+}
+
+// 선택한 조건 그대로 걸러낸 "엄격한" 풀 (요약 화면에 참고용으로만 사용)
+function computePool() {
+  return filterWith(state);
+}
+
+// 실제 뽑기에 쓰는 풀: 결과가 MIN_POOL 미만이면 태그 -> 온도 -> 종류 -> 장르 순으로
+// 조건을 하나씩 완화해서 최소 개수를 보장한다.
+function getEffectivePool() {
+  const active = {
+    genre: new Set(state.genre), type: new Set(state.type),
+    temp: new Set(state.temp), taste: new Set(state.taste),
+  };
+  let pool = filterWith(active);
+  const relaxed = [];
+  let i = 0;
+  while (pool.length < MIN_POOL && i < RELAX_ORDER.length) {
+    const key = RELAX_ORDER[i];
+    if (active[key].size > 0) {
+      active[key] = new Set();
+      relaxed.push(key);
+      pool = filterWith(active);
+    }
+    i++;
+  }
+  return { pool, relaxed };
+}
+
+/* ---------------- Theme ---------------- */
+function setTheme(t) {
+  const root = document.documentElement.style;
+  root.setProperty('--g1', t.g1); root.setProperty('--g2', t.g2); root.setProperty('--g3', t.g3);
+}
+
+/* ---------------- Toast ---------------- */
+let toastTimer;
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+}
+
+/* ---------------- Step navigation ---------------- */
+const screens = document.querySelectorAll('.screen');
+function goTo(step) {
+  currentStep = step;
+  track.style.setProperty('--step', step);
+  fab.classList.toggle('hide', step === 5);
+  if (step === 4) renderReview();
+  if (step === 5) startTiltLoop(); else stopTiltLoop();
+}
+document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', () => goTo(Math.min(currentStep + 1, 4))));
+document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => goTo(Math.max(currentStep - 1, 0))));
+
+function renderReview() {
+  const { pool, relaxed } = getEffectivePool();
+  document.getElementById('poolNum').textContent = pool.length;
+  const noteEl = document.getElementById('poolRelaxNote');
+  if (relaxed.length > 0) {
+    const names = relaxed.map(k => GROUP_LABEL[k]).join(', ');
+    noteEl.textContent = `※ 조건에 맞는 게 적어서 ${names} 조건은 잠시 넓혔어요`;
+    noteEl.style.display = 'block';
+  } else {
+    noteEl.style.display = 'none';
+  }
+  const mapGroups = [
+    ['rv-genre', 'genre', GENRE_ICON], ['rv-type', 'type', TYPE_ICON],
+    ['rv-temp', 'temp', TEMP_ICON], ['rv-taste', 'taste', TASTE_ICON],
+  ];
+  mapGroups.forEach(([id, group, icon]) => {
+    const box = document.getElementById(id);
+    box.innerHTML = '';
+    if (state[group].size === 0) {
+      const s = document.createElement('span');
+      s.className = 'review-tag empty'; s.textContent = '전체';
+      box.appendChild(s);
+    } else {
+      [...state[group]].forEach(v => {
+        const s = document.createElement('span');
+        s.className = 'review-tag'; s.textContent = `${icon[v]} ${v}`;
+        box.appendChild(s);
+      });
+    }
+  });
+}
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  Object.keys(state).forEach(g => state[g].clear());
+  document.querySelectorAll('.chip.on').forEach(c => c.classList.remove('on'));
+  setTheme(DEFAULT_THEME);
+  renderReview();
+});
+document.getElementById('changeBtn').addEventListener('click', () => goTo(4));
+
+/* ---------------- Draw ---------------- */
+function draw() {
+  const { pool, relaxed } = getEffectivePool();
+  if (pool.length === 0) { showToast('조건에 맞는 음식이 없어요. 필터를 줄여보세요 🙏'); return; }
+  if (relaxed.length > 0) {
+    const names = relaxed.map(k => GROUP_LABEL[k]).join(', ');
+    showToast(`조건이 너무 좁아서 ${names} 조건은 잠시 풀고 뽑았어요`);
+  }
+  const food = pool[Math.floor(Math.random() * pool.length)];
+  setTheme(GENRES[food.genre]);
+  renderCard(food);
+  goTo(5);
+  cardEl.classList.remove('flipped');
+  cardEl.classList.remove('pop');
+  void cardEl.offsetWidth;
+  cardEl.classList.add('pop');
+  target.x = 0; target.y = 0; cur.x = 0; cur.y = 0;
+  applyTilt(0, 0);
+}
+function renderCard(f) {
+  document.getElementById('cGenre').textContent = f.genre;
+  document.getElementById('cKcalTop').textContent = `${f.kcal} kcal`;
+  document.getElementById('cEmoji').textContent = f.emoji;
+  document.getElementById('cEmojiBack').textContent = f.emoji;
+  document.getElementById('cName').textContent = f.name;
+  document.getElementById('cNameBack').textContent = f.name;
+  document.getElementById('cShort').textContent = f.short;
+  document.getElementById('cDetail').textContent = f.detail;
+  document.getElementById('cKcal').textContent = f.kcal;
+  document.getElementById('cGenreBack').textContent = f.genre;
+  document.getElementById('cTypeBack').textContent = TYPE_LABEL[f.type];
+  document.getElementById('cTempBack').textContent = TEMP_LABEL[f.temp];
+  document.getElementById('cFooterLeft').textContent = `No. ${String(FOODS.indexOf(f) + 1).padStart(2,'0')}`;
+  const tagRow = document.getElementById('cTags');
+  tagRow.innerHTML = '';
+  [f.type, f.temp, ...f.taste].forEach(t => {
+    const s = document.createElement('span'); s.className = 'mini-tag'; s.textContent = t; tagRow.appendChild(s);
+  });
+}
+document.getElementById('drawBtn').addEventListener('click', draw);
+document.getElementById('againBtn').addEventListener('click', draw);
+fab.addEventListener('click', draw);
+cardEl.addEventListener('click', () => cardEl.classList.toggle('flipped'));
+
+/* ---------------- Tilt / holo (pointer + gyro, eased) ---------------- */
+function applyTilt(x, y) {
+  const rotY = x * 16, rotX = -y * 16;
+  tiltEl.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+  const mx = 50 + x * 50, my = 50 + y * 50;
+  const ang = Math.atan2(y, x) * 180 / Math.PI;
+  const intensity = Math.min(1, Math.sqrt(x * x + y * y));
+  cardEl.style.setProperty('--mx', mx + '%');
+  cardEl.style.setProperty('--my', my + '%');
+  cardEl.style.setProperty('--ang', ang);
+  cardEl.style.setProperty('--intensity', intensity);
+}
+function tiltLoop() {
+  cur.x += (target.x - cur.x) * 0.16;
+  cur.y += (target.y - cur.y) * 0.16;
+  applyTilt(cur.x, cur.y);
+  rafId = requestAnimationFrame(tiltLoop);
+}
+function startTiltLoop() { if (!rafId) rafId = requestAnimationFrame(tiltLoop); }
+function stopTiltLoop() { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } }
+
+cardPersp.addEventListener('pointermove', (e) => {
+  const rect = cardPersp.getBoundingClientRect();
+  target.x = Math.max(-1, Math.min(1, ((e.clientX - rect.left) / rect.width - 0.5) * 2));
+  target.y = Math.max(-1, Math.min(1, ((e.clientY - rect.top) / rect.height - 0.5) * 2));
+});
+cardPersp.addEventListener('pointerleave', () => { target.x = 0; target.y = 0; });
+
+const gyroBtn = document.getElementById('gyroBtn');
+function handleOrientation(e) {
+  const gamma = Math.max(-45, Math.min(45, e.gamma || 0));
+  const beta = Math.max(-45, Math.min(45, (e.beta || 0) - 45));
+  target.x = gamma / 45; target.y = beta / 45;
+}
+gyroBtn.addEventListener('click', async () => {
+  if (gyroOn) return;
+  try {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const res = await DeviceOrientationEvent.requestPermission();
+      if (res !== 'granted') { showToast('자이로 권한이 필요해요'); return; }
+    }
+    window.addEventListener('deviceorientation', handleOrientation);
+    gyroOn = true;
+    gyroBtn.textContent = '✅ 자이로 반짝이 켜짐';
+  } catch (err) { showToast('이 기기에서는 자이로를 쓸 수 없어요'); }
+});
+
+goTo(0);
+</script>
+</body>
+</html>
